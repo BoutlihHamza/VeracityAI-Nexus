@@ -1,42 +1,35 @@
-# My Node.js Project
+# VeracityAI Nexus
 
-This is a simple Node.js project that serves as a starting point for building applications.
+**An Intelligent Information Credibility Expert System with Dynamic Prolog Integration**
 
-## Table of Contents
+## 🔍 Overview
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [License](#license)
+VeracityAI Nexus is a hybrid rule-based system combining the logical power of Prolog with the accessibility of a Node.js REST API. It enables dynamic ingestion, evaluation, and scoring of information based on custom criteria, aiming to enhance media reliability analysis and digital fact-checking.
 
-## Installation
+## 🧠 Features
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/my-nodejs-project.git
-   ```
+- 📥 Add information dynamically with metadata (source, author, style, etc.)
+- 📊 Analyze existing information and get detailed reliability scores
+- 🔎 Criteria-based scoring:
+  - Source trustworthiness
+  - Author reputation
+  - Presence of citations
+  - Language emotionality
+  - Contradictions
+- 📚 Persists new Prolog facts to a `.pl` file for future inference
+- 🧾 Returns detailed explanations for transparency and interpretability
 
-2. Navigate into the project directory:
-   ```
-   cd my-nodejs-project
-   ```
+## 🚀 Getting Started
 
-3. Install the dependencies:
-   ```
-   npm install
-   ```
+### Prerequisites
 
-## Usage
+- Node.js (v14+)
+- SWI-Prolog
+- `projet.pl` file (knowledge base)
 
-To start the application, run the following command:
-```
-node src/index.js
-```
+### 📦 Installation
 
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request.
-
-## License
-
-This project is licensed under the MIT License.
+```bash
+git clone https://github.com/BoutlihHamza/VeracityAI-Nexus-Intelligent-Information-Credibility-Expert-System-with-Dynamic-Prolog-Integration.git
+cd VeracityAI-Nexus-Intelligent-Information-Credibility-Expert-System-with-Dynamic-Prolog-Integration
+npm install
