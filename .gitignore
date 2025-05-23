@@ -1,0 +1,15 @@
+# Environment variables
+.env
+
+# Logs
+logs/
+
+# Node modules
+node_modules/
+
+# Lock files (optional, but often tracked)
+# You usually want to track package-lock.json for npm, so leave it out unless you have a reason
+
+# Compiled files or build outputs (if any)
+dist/
+build/
