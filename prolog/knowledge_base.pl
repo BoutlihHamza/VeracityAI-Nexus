@@ -392,3 +392,7 @@ export_evaluation(Info, Result, json(JSONResult)) :-
 % ============================================================================
 % END OF KNOWLEDGE BASE
 % ============================================================================
+
+% Added at 2025-05-23T17:22:06.746Z
+source_reputation(tech_portal, 0.65). % source:editorial_team
+author_expertise(maria_garcia, data_science). % source:editorial_team

@@ -13,3 +13,4 @@ node_modules/
 # Compiled files or build outputs (if any)
 dist/
 build/
+prolog

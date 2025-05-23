@@ -9,6 +9,7 @@ import { evaluationRoutes } from "./routes/evaluationRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 import { requestLogger } from "./middleware/requestLogger";
 import { rateLimiter } from "./middleware/rateLimiter";
+import { knowledgeRoutes } from "./routes/knowledgeRoutes";
 
 class Server {
   private app: Application;
@@ -52,6 +53,7 @@ class Server {
 
   private setupRoutes(): void {
     // API routes
+    this.app.use(`${config.api.prefix}/knowledge`, knowledgeRoutes);
     this.app.use(config.api.prefix, evaluationRoutes);
 
     // Root endpoint
@@ -68,6 +70,7 @@ class Server {
         },
       });
     });
+    
 
     // 404 handler
     // this.app.use("/*", (req, res) => {

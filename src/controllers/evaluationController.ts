@@ -79,6 +79,7 @@ export class EvaluationController {
   public evaluateBatch = async (req: Request, res: Response): Promise<void> => {
     try {
       const { items }: { items: InformationInput[] } = req.body;
+      console.log("itmes",items)
 
       if (!Array.isArray(items) || items.length === 0) {
         res.status(400).json({

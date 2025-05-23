@@ -48,3 +48,15 @@ export interface PrologResponse {
   result: any;
   error?: string;
 }
+
+export interface PrologFact {
+  predicate: string;
+  arguments: string[];
+  comment?: string;
+}
+
+export interface AddFactRequest {
+  facts: PrologFact[];
+  source?: string;
+  expiration?: string; // Optional expiration date in ISO format
+}
