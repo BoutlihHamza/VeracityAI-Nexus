@@ -564,115 +564,21 @@ export class PrologService {
    * List all facts from the knowledge base - FIXED to include evaluation facts only
    */
   async listFacts(): Promise<FactListProps> {
-  try {
-    const content = await fs.readFile(
-      config.prolog.knowledgeBasePath,
-      "utf-8"
-    );
-    
-    // Parse all facts and filter only evaluations
-    const allFacts = this.parseKnowledgeBase(content);
-    const evaluations = allFacts.filter(fact => 
-      fact.predicate === "evaluation" &&
-      fact.arguments.length === 4
-    );
+    try {
+      const content = await fs.readFile(
+        config.prolog.knowledgeBasePath,
+        "utf-8"
+      );
+      const facts = this.parseKnowledgeBase(content);
 
-    return { facts: evaluations };
-  } catch (error) {
-    logger.error("Failed to read knowledge base:", error);
-    return { facts: [] };
-  }
-}
-
-
-  private parseArguments(argsString: string): string[] {
-  if (!argsString) return [];
-  
-  const args: string[] = [];
-  let current = "";
-  let quoteLevel = 0;
-  let inEscape = false;
-
-  for (let i = 0; i < argsString.length; i++) {
-    const char = argsString[i];
-    
-    if (inEscape) {
-      current += char;
-      inEscape = false;
-      continue;
-    }
-
-    switch(char) {
-      case '\\':
-        inEscape = true;
-        current += char;
-        break;
-      
-      case "'":
-        // Handle triple quotes
-        if (argsString.substr(i, 3) === "'''") {
-          quoteLevel = quoteLevel === 3 ? 0 : 3;
-          current += "'''";
-          i += 2;
-        } else {
-          quoteLevel = quoteLevel === 1 ? 0 : 1;
-          current += char;
-        }
-        break;
-      
-      case ',':
-        if (quoteLevel === 0) {
-          args.push(current.trim());
-          current = "";
-        } else {
-          current += char;
-        }
-        break;
-      
-      default:
-        current += char;
+      return { facts };
+    } catch (error) {
+      logger.error("Failed to read knowledge base:", error);
+      return { facts: [] };
     }
   }
 
-  if (current.trim()) args.push(current.trim());
   
-  return args.map(arg => this.cleanPrologArgument(arg));
-}
-
-// Add argument cleaning helper
-private cleanPrologArgument(arg: string): string {
-  // Remove triple quotes
-  if (arg.startsWith("'''") && arg.endsWith("'''")) {
-    return arg.slice(3, -3).replace(/''/g, "'");
-  }
-  // Remove single quotes
-  if (arg.startsWith("'") && arg.endsWith("'")) {
-    return arg.slice(1, -1).replace(/''/g, "'");
-  }
-  return arg;
-}
-
-// Uncomment and fix the evaluation results parsing
-private parseEvaluationResults(output: string): EvaluationResult[] {
-  const evaluations: EvaluationResult[] = [];
-  
-  if (!output || !output.trim()) {
-    return evaluations;
-  }
-
-  const lines = output.split('\n').filter(line => line.trim());
-  
-  for (const line of lines) {
-    if (line.startsWith('EVAL:')) {
-      const evaluation = this.parseEvaluationLine(line);
-      if (evaluation) {
-        evaluations.push(evaluation);
-      }
-    }
-  }
-
-  return evaluations;
-}
 
   private formatFacts(request: AddFactRequest): string {
     const header = `% Added at ${new Date().toISOString()}`;
@@ -747,73 +653,73 @@ private parseEvaluationResults(output: string): EvaluationResult[] {
     };
   }
 
-  // private parseArguments(argsString: string): string[] {
-  //   if (!argsString) return [];
+  private parseArguments(argsString: string): string[] {
+    if (!argsString) return [];
 
-  //   // Handle complex argument parsing for evaluation facts
-  //   const args: string[] = [];
-  //   let current = "";
-  //   let depth = 0;
-  //   let inQuotes = false;
-  //   let quoteChar = "";
+    // Handle complex argument parsing for evaluation facts
+    const args: string[] = [];
+    let current = "";
+    let depth = 0;
+    let inQuotes = false;
+    let quoteChar = "";
 
-  //   for (let i = 0; i < argsString.length; i++) {
-  //     const char = argsString[i];
-  //     const nextChar = argsString[i + 1];
-  //     const prevChar = argsString[i - 1];
+    for (let i = 0; i < argsString.length; i++) {
+      const char = argsString[i];
+      const nextChar = argsString[i + 1];
+      const prevChar = argsString[i - 1];
 
-  //     if (!inQuotes) {
-  //       if (
-  //         char === "'" &&
-  //         (prevChar !== "\\" ||
-  //           (prevChar === "\\" && argsString[i - 2] === "\\"))
-  //       ) {
-  //         if (nextChar === "'" && argsString[i + 2] === "'") {
-  //           // Triple quote start
-  //           inQuotes = true;
-  //           quoteChar = "'''";
-  //           current += char;
-  //         } else {
-  //           // Single quote start
-  //           inQuotes = true;
-  //           quoteChar = "'";
-  //           current += char;
-  //         }
-  //       } else if (char === "," && depth === 0) {
-  //         args.push(current.trim());
-  //         current = "";
-  //       } else {
-  //         if (char === "(") depth++;
-  //         if (char === ")") depth--;
-  //         current += char;
-  //       }
-  //     } else {
-  //       current += char;
-  //       if (
-  //         quoteChar === "'''" &&
-  //         char === "'" &&
-  //         nextChar === "'" &&
-  //         argsString[i + 2] === "'"
-  //       ) {
-  //         // Triple quote end
-  //         current += nextChar + argsString[i + 2];
-  //         i += 2;
-  //         inQuotes = false;
-  //         quoteChar = "";
-  //       } else if (quoteChar === "'" && char === "'" && prevChar !== "\\") {
-  //         // Single quote end
-  //         inQuotes = false;
-  //         quoteChar = "";
-  //       }
-  //     }
-  //   }
+      if (!inQuotes) {
+        if (
+          char === "'" &&
+          (prevChar !== "\\" ||
+            (prevChar === "\\" && argsString[i - 2] === "\\"))
+        ) {
+          if (nextChar === "'" && argsString[i + 2] === "'") {
+            // Triple quote start
+            inQuotes = true;
+            quoteChar = "'''";
+            current += char;
+          } else {
+            // Single quote start
+            inQuotes = true;
+            quoteChar = "'";
+            current += char;
+          }
+        } else if (char === "," && depth === 0) {
+          args.push(current.trim());
+          current = "";
+        } else {
+          if (char === "(") depth++;
+          if (char === ")") depth--;
+          current += char;
+        }
+      } else {
+        current += char;
+        if (
+          quoteChar === "'''" &&
+          char === "'" &&
+          nextChar === "'" &&
+          argsString[i + 2] === "'"
+        ) {
+          // Triple quote end
+          current += nextChar + argsString[i + 2];
+          i += 2;
+          inQuotes = false;
+          quoteChar = "";
+        } else if (quoteChar === "'" && char === "'" && prevChar !== "\\") {
+          // Single quote end
+          inQuotes = false;
+          quoteChar = "";
+        }
+      }
+    }
 
-  //   if (current.trim()) {
-  //     args.push(current.trim());
-  //   }
+    if (current.trim()) {
+      args.push(current.trim());
+    }
 
-  //   return args.map((arg) => this.unescapePrologTerm(arg));
-  // }
+    return args.map((arg) => this.unescapePrologTerm(arg));
+  }
 
   private escapePrologTerm(term: string): string {
     if (/^[a-z][a-zA-Z0-9_]*$/.test(term)) return term;
@@ -935,27 +841,27 @@ private parseEvaluationResults(output: string): EvaluationResult[] {
   /**
    * Parse evaluation results from Prolog output
    */
-  // private parseEvaluationResults(output: string): EvaluationResult[] {
-  //   const evaluations: EvaluationResult[] = [];
-  //   console.log(evaluations)
+  private parseEvaluationResults(output: string): EvaluationResult[] {
+    const evaluations: EvaluationResult[] = [];
+    console.log(evaluations)
 
-  //   if (!output || !output.trim()) {
-  //     return evaluations;
-  //   }
+    if (!output || !output.trim()) {
+      return evaluations;
+    }
 
-  //   const lines = output.split("\n").filter((line) => line.trim());
+    const lines = output.split("\n").filter((line) => line.trim());
 
-  //   // for (const line of lines) {
-  //   //   if (line.startsWith("EVAL:")) {
-  //   //     const evaluation = this.parseEvaluationLine(line);
-  //   //     if (evaluation) {
-  //   //       evaluations.push(evaluation);
-  //   //     }
-  //   //   }
-  //   // }
+    // for (const line of lines) {
+    //   if (line.startsWith("EVAL:")) {
+    //     const evaluation = this.parseEvaluationLine(line);
+    //     if (evaluation) {
+    //       evaluations.push(evaluation);
+    //     }
+    //   }
+    // }
 
-  //   return evaluations;
-  // }
+    return evaluations;
+  }
 
   /**
    * Parse a single evaluation line

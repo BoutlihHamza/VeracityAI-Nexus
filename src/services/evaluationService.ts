@@ -11,6 +11,7 @@ export class EvaluationService {
   ): Promise<CredibilityResult> {
     try {
       const prologResponse = await this.prologService.evaluateInformation(info);
+      console.log("Prolog response: ", prologResponse)
 
       if (!prologResponse.success || !prologResponse.result) {
         throw new Error(prologResponse.error || "Prolog evaluation failed");

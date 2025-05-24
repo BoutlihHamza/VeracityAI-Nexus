@@ -36,6 +36,7 @@ export class EvaluationController {
 
       // Perform evaluation
       const result = await this.evaluationService.evaluateAndSave(informationInput);
+      console.log("RRRRRRREsult:", result)
 
       res.status(200).json({
         success: true,
