@@ -6,7 +6,7 @@ const router = Router();
 const controller = new KnowledgeController();
 
 // Add facts
-router.post('/facts', addFactValidator, controller.addFacts);
+// router.post('/facts', addFactValidator, controller.addFacts);
 
 // List facts
 router.get('/facts', controller.listFacts);

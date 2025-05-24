@@ -30,6 +30,6 @@ VeracityAI Nexus is a hybrid rule-based system combining the logical power of Pr
 ### 📦 Installation
 
 ```bash
-git clone https://github.com/BoutlihHamza/VeracityAI-Nexus-Intelligent-Information-Credibility-Expert-System-with-Dynamic-Prolog-Integration.git
-cd VeracityAI-Nexus-Intelligent-Information-Credibility-Expert-System-with-Dynamic-Prolog-Integration
+git clone https://github.com/BoutlihHamza/VeracityAI-Nexus.git
+cd VeracityAI-Nexus
 npm install

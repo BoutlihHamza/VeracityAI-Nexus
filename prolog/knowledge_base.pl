@@ -1,398 +1,293 @@
-% ============================================================================
-% KNOWLEDGE BASE FOR INFORMATION CREDIBILITY EVALUATION EXPERT SYSTEM
-% Système Expert pour l'Évaluation de la Fiabilité des Informations
-% ============================================================================
+% ============================================
+% Prolog Knowledge Base for Information Credibility Evaluation
+% File: prolog/knowledge_base.pl
+% ============================================
 
-% ----------------------------------------------------------------------------
-% 1. FACTS - Base de connaissances (Faits)
-% ----------------------------------------------------------------------------
+% Declare discontiguous predicates to avoid warnings
+:- discontiguous query_credibility/7.
+:- discontiguous evaluate_source/2.
+:- discontiguous evaluate_citations/2.
+:- discontiguous evaluate_language/2.
+:- discontiguous evaluate_contradictions/2.
 
-% Source reputation facts
-source_reputation(official_gov, 0.9).
-source_reputation(academic, 0.85).
-source_reputation(news_major, 0.7).
-source_reputation(news_local, 0.6).
-source_reputation(blog_expert, 0.5).
-source_reputation(social_media, 0.3).
-source_reputation(anonymous, 0.2).
-source_reputation(unknown, 0.1).
+% Validate query_credibility parameters
+:- multifile prolog:message//1.
+prolog:message(query_error(Error)) -->
+    ['QUERY VALIDATION ERROR: ~w'-[Error]].
 
-% Author credibility facts
-author_credibility(expert_verified, 0.9).
-author_credibility(academic, 0.8).
-author_credibility(journalist_verified, 0.7).
-author_credibility(known_professional, 0.6).
-author_credibility(regular_contributor, 0.4).
-author_credibility(anonymous_credible, 0.3).
-author_credibility(anonymous_unknown, 0.1).
+% Initialize knowledge base - declare dynamic predicates
+:- dynamic(source_type/2).
+:- dynamic(source_reputation/2).
+:- dynamic(source_url/2).
+:- dynamic(author_anonymous/2).
+:- dynamic(author_expert/2).
+:- dynamic(author_name/2).
+:- dynamic(has_emotional_language/2).
+:- dynamic(has_citations/2).
+:- dynamic(citation_count/2).
+:- dynamic(has_references/2).
+:- dynamic(publication_date/2).
 
-% Language style indicators
-emotional_language_penalty(high, 0.3).
-emotional_language_penalty(medium, 0.2).
-emotional_language_penalty(low, 0.1).
-emotional_language_penalty(none, 0.0).
+% Facts about source types and their base credibility
+source_credibility(official, 0.9).
+source_credibility(news, 0.7).
+source_credibility(blog, 0.5).
+source_credibility(social, 0.3).
+source_credibility(unknown, 0.2).
 
-% Citation quality weights
-citation_weight(peer_reviewed, 0.9).
-citation_weight(official_source, 0.8).
-citation_weight(news_source, 0.6).
-citation_weight(blog_reference, 0.4).
-citation_weight(social_reference, 0.2).
-citation_weight(no_citation, 0.0).
+% Main credibility evaluation predicate - consolidated version
+query_credibility(Content, Level, Score, SScore, CScore, LScore, ConScore) :-
+    evaluer_info(Content, Level, Score, _Explanation),
+    SScore is round(SourceScore * 100),
+    CScore is round(CitationScore * 100),
+    LScore is round(LanguageScore * 100),
+    ConScore is round(ContradictionScore * 100).
 
-% Contradiction levels
-contradiction_impact(none, 0.0).
-contradiction_impact(minor, 0.1).
-contradiction_impact(moderate, 0.3).
-contradiction_impact(major, 0.5).
-contradiction_impact(severe, 0.7).
+% Rules for source evaluation
+evaluate_source(Info, Score) :-
+    source_type(Info, Type),
+    source_reputation(Info, Reputation),
+    source_credibility(Type, BaseScore),
+    Score is BaseScore * Reputation.
 
-% Content type modifiers
-content_type_modifier(scientific, 0.1).
-content_type_modifier(news, 0.0).
-content_type_modifier(opinion, -0.1).
-content_type_modifier(advertisement, -0.3).
+% Default source evaluation if facts are missing
+evaluate_source(_, 0.2) :-
+    true. % Fallback to low credibility
 
-% ----------------------------------------------------------------------------
-% 2. RULES - Règles d'inférence (Rules)
-% ----------------------------------------------------------------------------
+% Rules for citation evaluation
+evaluate_citations(Info, Score) :-
+    has_citations(Info, true),
+    citation_count(Info, Count),
+    Count > 0,
+    Score is min(1.0, Count * 0.2).
 
-% Main evaluation rule - Point d'entrée principal
-evaluate_information_credibility(Info, Result) :-
-    extract_info_components(Info, Source, Author, Content, Citations, Language, Contradictions),
-    calculate_source_score(Source, SourceScore),
-    calculate_author_score(Author, AuthorScore),
-    calculate_citation_score(Citations, CitationScore),
-    calculate_language_score(Language, LanguageScore),
-    calculate_contradiction_score(Contradictions, ContraScore),
-    combine_scores([SourceScore, AuthorScore, CitationScore, LanguageScore, ContraScore], 
-                  [0.4, 0.2, 0.2, 0.1, 0.1], FinalScore),
-    determine_credibility_level(FinalScore, Level),
-    generate_explanation(SourceScore, AuthorScore, CitationScore, LanguageScore, ContraScore, Level, Explanation),
-    Result = credibility(FinalScore, Level, Explanation).
+evaluate_citations(Info, 0.0) :-
+    has_citations(Info, false).
 
-% Source evaluation rules
-calculate_source_score(Source, Score) :-
-    source_type(Source, Type),
-    source_reputation(Type, BaseScore),
-    source_age(Source, Age),
-    apply_age_factor(BaseScore, Age, Score).
+evaluate_citations(Info, 0.1) :-
+    has_citations(Info, true),
+    citation_count(Info, 0).
 
-source_type(source(Type, _, _), Type).
-source_age(source(_, Age, _), Age).
+% Default citation evaluation
+evaluate_citations(_, 0.0) :-
+    true. % Fallback if no citation info
 
-apply_age_factor(BaseScore, Age, Score) :-
-    (Age > 365 -> AgeFactor = 0.9;
-     Age > 180 -> AgeFactor = 0.95;
-     AgeFactor = 1.0),
-    Score is BaseScore * AgeFactor.
+% Rules for language analysis
+evaluate_language(Info, Score) :-
+    has_emotional_language(Info, true),
+    Score is 0.3.  % Emotional language reduces credibility
 
-% Author evaluation rules
-calculate_author_score(Author, Score) :-
-    author_type(Author, Type),
-    author_credibility(Type, BaseScore),
-    author_anonymity(Author, IsAnon),
-    apply_anonymity_penalty(BaseScore, IsAnon, Score).
+evaluate_language(Info, Score) :-
+    has_emotional_language(Info, false),
+    author_expert(Info, true),
+    Score is 0.9.  % Expert author with neutral language
 
-author_type(author(Type, _, _), Type).
-author_anonymity(author(_, _, IsAnon), IsAnon).
+evaluate_language(Info, Score) :-
+    has_emotional_language(Info, false),
+    author_expert(Info, false),
+    author_anonymous(Info, false),
+    Score is 0.7.  % Known non-expert author
 
-apply_anonymity_penalty(BaseScore, true, Score) :-
-    Score is BaseScore * 0.7.
-apply_anonymity_penalty(BaseScore, false, BaseScore).
+evaluate_language(Info, Score) :-
+    has_emotional_language(Info, false),
+    author_anonymous(Info, true),
+    Score is 0.4.  % Anonymous author
 
-% Citation evaluation rules
-calculate_citation_score(Citations, Score) :-
-    citation_count(Citations, Count),
-    citation_quality(Citations, Quality),
-    citation_weight(Quality, QualityWeight),
-    calculate_count_bonus(Count, CountBonus),
-    Score is (QualityWeight + CountBonus) / 2.
+% Default language evaluation
+evaluate_language(_, 0.5) :-
+    true. % Neutral fallback
 
-citation_count(citations(Count, _), Count).
-citation_quality(citations(_, Quality), Quality).
+% Rules for contradiction detection (simplified)
+evaluate_contradictions(Info, Score) :-
+    has_references(Info, true),
+    Score is 0.8.
 
-calculate_count_bonus(Count, Bonus) :-
-    (Count >= 5 -> Bonus = 1.0;
-     Count >= 3 -> Bonus = 0.8;
-     Count >= 1 -> Bonus = 0.6;
-     Bonus = 0.0).
+evaluate_contradictions(Info, 0.5) :-
+    has_references(Info, false).
 
-% Language analysis rules
-calculate_language_score(Language, Score) :-
-    emotional_level(Language, EmotionalLevel),
-    emotional_language_penalty(EmotionalLevel, Penalty),
-    language_clarity(Language, Clarity),
-    BaseScore is 1.0 - Penalty,
-    Score is BaseScore * Clarity.
+% Default contradiction evaluation
+evaluate_contradictions(_, 0.5) :-
+    true. % Neutral fallback
 
-emotional_level(language(Emotional, _), Emotional).
-language_clarity(language(_, Clarity), Clarity).
+% Level determination rules
+determine_level(Score, suspect) :- Score =< 30.
+determine_level(Score, doubtful) :- Score > 30, Score =< 60.
+determine_level(Score, credible) :- Score > 60.
 
-% Contradiction analysis rules
-calculate_contradiction_score(Contradictions, Score) :-
-    contradiction_level(Contradictions, Level),
-    contradiction_impact(Level, Impact),
-    Score is 1.0 - Impact.
+% Multi-criteria weighted evaluation with detailed reasoning
+% In evaluer_info predicate, ensure final score is 0-100
+evaluer_info(Info, Level, FinalScore, Explanation) :-
+    evaluate_source(Info, SourceScore),
+    evaluate_citations(Info, CitationScore),
+    evaluate_language(Info, LanguageScore),
+    evaluate_contradictions(Info, ContradictionScore),
+    
+    % Weighted calculation (0-100 scale)
+    WeightedScore is (SourceScore * 40) + 
+                    (CitationScore * 30) + 
+                    (LanguageScore * 20) + 
+                    (ContradictionScore * 10),
+    
+    FinalScore is round(WeightedScore),
+    determine_level(FinalScore, Level),
+    generate_reasoning(Info, SourceScore, CitationScore, LanguageScore, Level, Explanation).
 
-contradiction_level(contradictions(Level), Level).
+% Generate reasoning with safe defaults
+generate_reasoning(Info, SourceScore, CitationScore, LanguageScore, Level, Reasoning) :-
+    (source_type(Info, SourceType) -> true; SourceType = unknown),
+    (has_citations(Info, HasCitations) -> true; HasCitations = false),
+    (citation_count(Info, CitationCount) -> true; CitationCount = 0),
+    (has_emotional_language(Info, HasEmotional) -> true; HasEmotional = false),
+    (author_expert(Info, IsExpert) -> true; IsExpert = false),
+    (author_anonymous(Info, IsAnonymous) -> true; IsAnonymous = true),
+    
+    with_output_to(atom(Reasoning), 
+        format('Information classified as ~w. Source type: ~w (score: ~2f). Citations: ~w (~w found, score: ~2f). Language analysis (score: ~2f). Emotional: ~w. Expert author: ~w. Anonymous: ~w.',
+        [Level, SourceType, SourceScore, HasCitations, CitationCount, CitationScore, LanguageScore, HasEmotional, IsExpert, IsAnonymous])).
 
-% Score combination rule with weights
-combine_scores([], [], 0).
-combine_scores([Score|ScoreRest], [Weight|WeightRest], Result) :-
-    combine_scores(ScoreRest, WeightRest, RestResult),
-    Result is Score * Weight + RestResult.
+% Helper predicate for testing individual information pieces
+test_info(Info) :-
+    evaluer_info(Info, Level, Score, Reasoning),
+    format('Information: ~w~n', [Info]),
+    format('Level: ~w~n', [Level]),
+    format('Score: ~2f~n', [Score]),
+    format('Reasoning: ~w~n~n', [Reasoning]).
 
-% Credibility level determination
-determine_credibility_level(Score, Level) :-
-    ScorePercent is Score * 100,
-    (ScorePercent >= 61 -> Level = credible;
-     ScorePercent >= 31 -> Level = doubtful;
-     Level = suspect).
-
-% ----------------------------------------------------------------------------
-% 3. INFERENCE ENGINE - Moteur d'inférence
-% ----------------------------------------------------------------------------
-
-% Forward chaining for automatic fact derivation
-derive_facts(Info, DerivedFacts) :-
-    findall(Fact, (
-        derive_single_fact(Info, Fact),
-        \+ member(Fact, Info)
-    ), DerivedFacts).
-
-derive_single_fact(Info, newly_published) :-
-    member(publication_date(Date), Info),
-    get_time(Now),
-    DaysDiff is (Now - Date) / 86400,
-    DaysDiff < 7.
-
-derive_single_fact(Info, outdated_content) :-
-    member(publication_date(Date), Info),
-    get_time(Now),
-    DaysDiff is (Now - Date) / 86400,
-    DaysDiff > 365.
-
-derive_single_fact(Info, well_cited) :-
-    member(citation_count(Count), Info),
-    Count >= 5.
-
-derive_single_fact(Info, poorly_cited) :-
-    member(citation_count(Count), Info),
-    Count < 1.
-
-% Backward chaining for goal-driven queries
-query_credibility(Goal, Info, Result) :-
-    (Goal = credibility_level -> 
-        evaluate_information_credibility(Info, credibility(_, Level, _)),
-        Result = Level
-    ;
-    Goal = credibility_score ->
-        evaluate_information_credibility(Info, credibility(Score, _, _)),
-        Result = Score
-    ;
-    Goal = explanation ->
-        evaluate_information_credibility(Info, credibility(_, _, Explanation)),
-        Result = Explanation
+% Predicate to evaluate multiple criteria and return detailed breakdown
+detailed_evaluation(Info, Result) :-
+    evaluate_source(Info, SourceScore),
+    evaluate_citations(Info, CitationScore),
+    evaluate_language(Info, LanguageScore),
+    evaluate_contradictions(Info, ContradictionScore),
+    
+    WeightedScore is (SourceScore * 0.4) + (CitationScore * 0.3) + 
+                    (LanguageScore * 0.2) + (ContradictionScore * 0.1),
+    
+    FinalScore is WeightedScore * 100,
+    determine_level(FinalScore, Level),
+    
+    Result = evaluation(
+        final_score(FinalScore),
+        level(Level),
+        breakdown(
+            source(SourceScore),
+            citations(CitationScore),
+            language(LanguageScore),
+            contradictions(ContradictionScore)
+        )
     ).
 
-% ----------------------------------------------------------------------------
-% 4. EXPLANATION GENERATION - Génération d'explications
-% ----------------------------------------------------------------------------
+% Batch evaluation predicate
+evaluate_batch([], []).
+evaluate_batch([Info|Rest], [Result|RestResults]) :-
+    detailed_evaluation(Info, Result),
+    evaluate_batch(Rest, RestResults).
 
-generate_explanation(SourceScore, AuthorScore, CitationScore, LanguageScore, ContraScore, Level, Explanation) :-
-    format_scores(SourceScore, AuthorScore, CitationScore, LanguageScore, ContraScore, FormattedScores),
-    generate_level_explanation(Level, LevelExplanation),
-    identify_strengths([SourceScore, AuthorScore, CitationScore, LanguageScore, ContraScore], 
-                      ['source', 'author', 'citations', 'language', 'contradictions'], Strengths),
-    identify_weaknesses([SourceScore, AuthorScore, CitationScore, LanguageScore, ContraScore], 
-                       ['source', 'author', 'citations', 'language', 'contradictions'], Weaknesses),
-    Explanation = explanation(FormattedScores, LevelExplanation, Strengths, Weaknesses).
+% Helper to access information content
+content_id(Info, Info).
 
-format_scores(S1, S2, S3, S4, S5, formatted_scores(S1, S2, S3, S4, S5)).
+% Ensure all required facts exist with safe checks
+validate_info(Info) :-
+    (source_type(Info, _) -> true; true),
+    (source_reputation(Info, _) -> true; true),
+    (author_anonymous(Info, _) -> true; true),
+    (author_expert(Info, _) -> true; true),
+    (has_emotional_language(Info, _) -> true; true),
+    (has_citations(Info, _) -> true; true),
+    (citation_count(Info, _) -> true; true),
+    (has_references(Info, _) -> true; true).
 
-generate_level_explanation(credible, 'Information classée comme CRÉDIBLE - Score élevé dans la majorité des critères').
-generate_level_explanation(doubtful, 'Information classée comme DOUTEUSE - Score moyen, vérification recommandée').
-generate_level_explanation(suspect, 'Information classée comme SUSPECTE - Score faible, sources peu fiables').
+% Identify information content from facts
+info_content(Content) :-
+    source_type(Content, _).
 
-identify_strengths(Scores, Labels, Strengths) :-
-    pair_scores_labels(Scores, Labels, Pairs),
-    include(is_strength, Pairs, StrengthPairs),
-    extract_labels(StrengthPairs, Strengths).
+% Alternative: find any content that has at least one fact defined
+info_content(Content) :-
+    (   source_type(Content, _)
+    ;   source_reputation(Content, _)
+    ;   author_anonymous(Content, _)
+    ;   author_expert(Content, _)
+    ;   has_emotional_language(Content, _)
+    ;   has_citations(Content, _)
+    ;   citation_count(Content, _)
+    ;   has_references(Content, _)
+    ), !. % Cut to avoid multiple solutions for the same content
 
-identify_weaknesses(Scores, Labels, Weaknesses) :-
-    pair_scores_labels(Scores, Labels, Pairs),
-    include(is_weakness, Pairs, WeaknessPairs),
-    extract_labels(WeaknessPairs, Weaknesses).
 
-pair_scores_labels([], [], []).
-pair_scores_labels([Score|Scores], [Label|Labels], [Score-Label|Pairs]) :-
-    pair_scores_labels(Scores, Labels, Pairs).
 
-is_strength(Score-_) :- Score > 0.7.
-is_weakness(Score-_) :- Score < 0.4.
 
-extract_labels([], []).
-extract_labels([_-Label|Pairs], [Label|Labels]) :-
-    extract_labels(Pairs, Labels).
 
-% ----------------------------------------------------------------------------
-% 5. UTILITY PREDICATES - Prédicats utilitaires
-% ----------------------------------------------------------------------------
+% Added at 2025-05-24T04:26:38.999Z
+% Source: auto-evaluation
+% Expires: 2026-05-24
+source_type('''Climate change is completely fake and made up by scientists for money''', '''unknown'''). % type for Climate change is completely fake and made up by s...
+source_reputation('''Climate change is completely fake and made up by scientists for money''', '0.1'). % reputation for Climate change is completely fake and made up by s...
+author_anonymous('''Climate change is completely fake and made up by scientists for money''', true). % anonymous status for Climate change is completely fake and made up by s...
+author_expert('''Climate change is completely fake and made up by scientists for money''', false). % expert status for Climate change is completely fake and made up by s...
+content_emotional_language('''Climate change is completely fake and made up by scientists for money''', true). % emotional_language for Climate change is completely fake and made up by s...
+content_citations('''Climate change is completely fake and made up by scientists for money''', false). % citations for Climate change is completely fake and made up by s...
+content_citation_count('''Climate change is completely fake and made up by scientists for money''', '0'). % citation_count for Climate change is completely fake and made up by s...
+content_references('''Climate change is completely fake and made up by scientists for money''', false). % references for Climate change is completely fake and made up by s...
+source_score('''Climate change is completely fake and made up by scientists for money''', '0.02'). % Source score for evaluation at 2025-05-24T04:26:38.996Z
+citation_score('''Climate change is completely fake and made up by scientists for money''', '0'). % Citation score for evaluation at 2025-05-24T04:26:38.996Z
+language_score('''Climate change is completely fake and made up by scientists for money''', '0.3'). % Language score for evaluation at 2025-05-24T04:26:38.996Z
+contradiction_score('''Climate change is completely fake and made up by scientists for money''', '0.5'). % Contradiction score for evaluation at 2025-05-24T04:26:38.996Z
+evaluation('''Climate change is completely fake and made up by scientists for money''', '''suspect''', '12', '''Information classified as suspect.; Source type: unknown (score: 0.02).; Citations: false (0 found, score: 0.00).; Language analysis (score: 0.30).; Emotional: true.; Expert author: false.; Anonymous: true.'''). % Evaluation completed at 2025-05-24T04:26:38.996Z
 
-% Extract information components from structured input
-extract_info_components(Info, Source, Author, Content, Citations, Language, Contradictions) :-
-    member(source(SourceType, SourceAge, SourceRep), Info),
-    Source = source(SourceType, SourceAge, SourceRep),
-    member(author(AuthorType, AuthorCred, AuthorAnon), Info),
-    Author = author(AuthorType, AuthorCred, AuthorAnon),
-    member(content(ContentText), Info),
-    Content = content(ContentText),
-    member(citations(CitCount, CitQuality), Info),
-    Citations = citations(CitCount, CitQuality),
-    member(language(EmotLevel, Clarity), Info),
-    Language = language(EmotLevel, Clarity),
-    member(contradictions(ContraLevel), Info),
-    Contradictions = contradictions(ContraLevel).
 
-% Test cases and examples
-test_case_1(Info) :-
-    Info = [
-        source(academic, 30, 0.85),
-        author(expert_verified, 0.9, false),
-        content("Scientific study on climate change with peer review"),
-        citations(8, peer_reviewed),
-        language(none, 0.9),
-        contradictions(none)
-    ].
+% Added at 2025-05-24T04:26:55.670Z
+% Source: auto-evaluation
+% Expires: 2026-05-24
+source_score('''Climate change is completely fake and made up by scientists for money''', '0.02'). % Source score for evaluation at 2025-05-24T04:26:55.669Z
+citation_score('''Climate change is completely fake and made up by scientists for money''', '0'). % Citation score for evaluation at 2025-05-24T04:26:55.669Z
+language_score('''Climate change is completely fake and made up by scientists for money''', '0.3'). % Language score for evaluation at 2025-05-24T04:26:55.669Z
+contradiction_score('''Climate change is completely fake and made up by scientists for money''', '0.5'). % Contradiction score for evaluation at 2025-05-24T04:26:55.669Z
+evaluation('''Climate change is completely fake and made up by scientists for money''', '''suspect''', '12', '''Information classified as suspect.; Source type: unknown (score: 0.02).; Citations: false (0 found, score: 0.00).; Language analysis (score: 0.30).; Emotional: true.; Expert author: false.; Anonymous: true.'''). % Evaluation completed at 2025-05-24T04:26:55.669Z
 
-test_case_2(Info) :-
-    Info = [
-        source(social_media, 1, 0.3),
-        author(anonymous_unknown, 0.1, true),
-        content("Breaking news without verification"),
-        citations(0, no_citation),
-        language(high, 0.5),
-        contradictions(major)
-    ].
 
-test_case_3(Info) :-
-    Info = [
-        source(news_major, 2, 0.7),
-        author(journalist_verified, 0.7, false),
-        content("Political analysis with mixed sources"),
-        citations(3, news_source),
-        language(medium, 0.7),
-        contradictions(minor)
-    ].
+% Added at 2025-05-24T04:27:22.752Z
+% Source: auto-evaluation
+% Expires: 2026-05-24
+source_score('''Climate change is completely fake and made up by scientists for money''', '0.02'). % Source score for evaluation at 2025-05-24T04:27:22.749Z
+citation_score('''Climate change is completely fake and made up by scientists for money''', '0'). % Citation score for evaluation at 2025-05-24T04:27:22.749Z
+language_score('''Climate change is completely fake and made up by scientists for money''', '0.3'). % Language score for evaluation at 2025-05-24T04:27:22.749Z
+contradiction_score('''Climate change is completely fake and made up by scientists for money''', '0.5'). % Contradiction score for evaluation at 2025-05-24T04:27:22.749Z
+evaluation('''Climate change is completely fake and made up by scientists for money''', '''suspect''', '12', '''Information classified as suspect.; Source type: unknown (score: 0.02).; Citations: false (0 found, score: 0.00).; Language analysis (score: 0.30).; Emotional: true.; Expert author: false.; Anonymous: true.'''). % Evaluation completed at 2025-05-24T04:27:22.749Z
 
-% Query interface predicates
-evaluate_test_case(CaseNumber, Result) :-
-    (CaseNumber = 1 -> test_case_1(Info);
-     CaseNumber = 2 -> test_case_2(Info);
-     CaseNumber = 3 -> test_case_3(Info);
-     fail),
-    evaluate_information_credibility(Info, Result).
 
-% Interactive consultation interface
-start_consultation :-
-    write('=== Système Expert d\'Évaluation de Crédibilité ==='), nl,
-    write('Veuillez fournir les informations suivantes:'), nl,
-    collect_source_info(Source),
-    collect_author_info(Author),
-    collect_content_info(Content),
-    collect_citation_info(Citations),
-    collect_language_info(Language),
-    collect_contradiction_info(Contradictions),
-    Info = [Source, Author, Content, Citations, Language, Contradictions],
-    evaluate_information_credibility(Info, Result),
-    display_result(Result).
+% Added at 2025-05-24T04:27:55.044Z
+% Source: auto-evaluation
+% Expires: 2026-05-24
+source_type('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '''official'''). % type for According to NASA and NOAA data, global temperatur...
+source_reputation('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '0.95'). % reputation for According to NASA and NOAA data, global temperatur...
+author_anonymous('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', false). % anonymous status for According to NASA and NOAA data, global temperatur...
+author_expert('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', true). % expert status for According to NASA and NOAA data, global temperatur...
+content_emotional_language('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', false). % emotional_language for According to NASA and NOAA data, global temperatur...
+content_citations('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', true). % citations for According to NASA and NOAA data, global temperatur...
+content_citation_count('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '5'). % citation_count for According to NASA and NOAA data, global temperatur...
+content_references('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', true). % references for According to NASA and NOAA data, global temperatur...
+source_score('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '0.855'). % Source score for evaluation at 2025-05-24T04:27:55.038Z
+citation_score('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '1'). % Citation score for evaluation at 2025-05-24T04:27:55.038Z
+language_score('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '0.9'). % Language score for evaluation at 2025-05-24T04:27:55.038Z
+contradiction_score('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '0.8'). % Contradiction score for evaluation at 2025-05-24T04:27:55.038Z
+evaluation('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '''credible''', '90', '''Information classified as credible.; Source type: official (score: 0.85).; Citations: true (5 found, score: 1.00).; Language analysis (score: 0.90).; Emotional: false.; Expert author: true.; Anonymous: false.'''). % Evaluation completed at 2025-05-24T04:27:55.038Z
+content_publication_date('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '''2024-01-15'''). % publication_date for According to NASA and NOAA data, global temperatur...
+source_url('''According to NASA and NOAA data, global temperatures have risen by 1.1°C since pre-industrial times''', '''https://nasa.gov/climate-report'''). % url for According to NASA and NOAA data, global temperatur...
 
-% Helper predicates for interactive consultation
-collect_source_info(source(Type, Age, Rep)) :-
-    write('Type de source (official_gov/academic/news_major/news_local/blog_expert/social_media/anonymous/unknown): '),
-    read(Type),
-    write('Âge en jours: '),
-    read(Age),
-    source_reputation(Type, Rep).
 
-collect_author_info(author(Type, Cred, IsAnon)) :-
-    write('Type d\'auteur (expert_verified/academic/journalist_verified/known_professional/regular_contributor/anonymous_credible/anonymous_unknown): '),
-    read(Type),
-    write('Auteur anonyme? (true/false): '),
-    read(IsAnon),
-    author_credibility(Type, Cred).
-
-collect_content_info(content(Text)) :-
-    write('Contenu de l\'information: '),
-    read_line_to_codes(user_input, Codes),
-    string_codes(Text, Codes).
-
-collect_citation_info(citations(Count, Quality)) :-
-    write('Nombre de citations: '),
-    read(Count),
-    write('Qualité des citations (peer_reviewed/official_source/news_source/blog_reference/social_reference/no_citation): '),
-    read(Quality).
-
-collect_language_info(language(EmotLevel, Clarity)) :-
-    write('Niveau émotionnel (none/low/medium/high): '),
-    read(EmotLevel),
-    write('Clarté du langage (0.0-1.0): '),
-    read(Clarity).
-
-collect_contradiction_info(contradictions(Level)) :-
-    write('Niveau de contradiction (none/minor/moderate/major/severe): '),
-    read(Level).
-
-display_result(credibility(Score, Level, Explanation)) :-
-    format('~n=== RÉSULTAT DE L\'ÉVALUATION ===~n'),
-    format('Score de crédibilité: ~2f/1.0 (~0f%)~n', [Score, Score*100]),
-    format('Niveau: ~w~n', [Level]),
-    write('Explication: '), write(Explanation), nl.
-
-% ----------------------------------------------------------------------------
-% 6. ADDITIONAL INFERENCE RULES
-% ----------------------------------------------------------------------------
-
-% Rules for dynamic knowledge base updates
-add_source_reputation(SourceType, Reputation) :-
-    assertz(source_reputation(SourceType, Reputation)).
-
-update_source_reputation(SourceType, NewReputation) :-
-    retract(source_reputation(SourceType, _)),
-    assertz(source_reputation(SourceType, NewReputation)).
-
-% Rules for learning from user feedback
-learn_from_feedback(InfoData, UserRating, SystemRating) :-
-    Difference is abs(UserRating - SystemRating),
-    (Difference > 0.3 ->
-        adjust_weights(InfoData, UserRating, SystemRating);
-        true).
-
-adjust_weights(InfoData, UserRating, SystemRating) :-
-    % This would implement weight adjustment based on feedback
-    % For now, just log the discrepancy
-    format('Learning opportunity: User rated ~2f, System rated ~2f~n', [UserRating, SystemRating]).
-
-% Batch evaluation for multiple information pieces
-evaluate_batch(InfoList, Results) :-
-    maplist(evaluate_information_credibility, InfoList, Results).
-
-% Export results to structured format
-export_evaluation(Info, Result, json(JSONResult)) :-
-    Result = credibility(Score, Level, Explanation),
-    JSONResult = [
-        score-Score,
-        level-Level,
-        explanation-Explanation,
-        timestamp-Now
-    ],
-    get_time(Now).
-
-% ============================================================================
-% END OF KNOWLEDGE BASE
-% ============================================================================
-
-% Added at 2025-05-23T17:22:06.746Z
-source_reputation(tech_portal, 0.65). % source:editorial_team
-author_expertise(maria_garcia, data_science). % source:editorial_team
+% Added at 2025-05-24T05:28:07.666Z
+% Source: auto-evaluation
+% Expires: 2026-05-24
+source_type('''Some studies suggest that renewable energy might not be as effective as claimed''', '''blog'''). % type for Some studies suggest that renewable energy might n...
+source_reputation('''Some studies suggest that renewable energy might not be as effective as claimed''', '0.5'). % reputation for Some studies suggest that renewable energy might n...
+author_anonymous('''Some studies suggest that renewable energy might not be as effective as claimed''', false). % anonymous status for Some studies suggest that renewable energy might n...
+author_expert('''Some studies suggest that renewable energy might not be as effective as claimed''', false). % expert status for Some studies suggest that renewable energy might n...
+content_emotional_language('''Some studies suggest that renewable energy might not be as effective as claimed''', false). % emotional_language for Some studies suggest that renewable energy might n...
+content_citations('''Some studies suggest that renewable energy might not be as effective as claimed''', true). % citations for Some studies suggest that renewable energy might n...
+content_citation_count('''Some studies suggest that renewable energy might not be as effective as claimed''', '2'). % citation_count for Some studies suggest that renewable energy might n...
+content_references('''Some studies suggest that renewable energy might not be as effective as claimed''', false). % references for Some studies suggest that renewable energy might n...
+source_score('''Some studies suggest that renewable energy might not be as effective as claimed''', '0.25'). % Source score for evaluation at 2025-05-24T05:28:07.663Z
+citation_score('''Some studies suggest that renewable energy might not be as effective as claimed''', '0.4'). % Citation score for evaluation at 2025-05-24T05:28:07.663Z
+language_score('''Some studies suggest that renewable energy might not be as effective as claimed''', '0.7'). % Language score for evaluation at 2025-05-24T05:28:07.663Z
+contradiction_score('''Some studies suggest that renewable energy might not be as effective as claimed''', '0.5'). % Contradiction score for evaluation at 2025-05-24T05:28:07.663Z
+evaluation('''Some studies suggest that renewable energy might not be as effective as claimed''', '''doubtful''', '41', '''Information classified as doubtful.; Source type: blog (score: 0.25).; Citations: true (2 found, score: 0.40).; Language analysis (score: 0.70).; Emotional: false.; Expert author: false.; Anonymous: false.'''). % Evaluation completed at 2025-05-24T05:28:07.663Z

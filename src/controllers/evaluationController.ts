@@ -35,7 +35,7 @@ export class EvaluationController {
       });
 
       // Perform evaluation
-      const result = await this.evaluationService.evaluateCredibility(informationInput);
+      const result = await this.evaluationService.evaluateAndSave(informationInput);
 
       res.status(200).json({
         success: true,

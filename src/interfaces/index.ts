@@ -60,3 +60,38 @@ export interface AddFactRequest {
   source?: string;
   expiration?: string; // Optional expiration date in ISO format
 }
+
+export interface FactListProps {
+  facts: PrologFact[];
+}
+
+
+
+
+export interface EvaluationQuery {
+  content?: string;
+  level?: 'suspect' | 'doubtful' | 'credible';
+  minScore?: number;
+  maxScore?: number;
+}
+
+export interface EvaluationResult {
+  content: string;
+  level: 'suspect' | 'doubtful' | 'credible';
+  score: number;
+  explanation: string;
+  breakdown?: {
+    sourceScore?: number;
+    citationScore?: number;
+    languageScore?: number;
+    contradictionScore?: number;
+  };
+  timestamp: string;
+}
+
+export interface EvaluationQuery {
+  level?: 'suspect' | 'doubtful' | 'credible';
+  minScore?: number;
+  maxScore?: number;
+  content?: string;
+}
